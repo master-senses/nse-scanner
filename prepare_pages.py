@@ -13,6 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).parent
 SRC = ROOT / "market_scanner.html"
 OUT = ROOT / "docs" / "index.html"
+QUOTES_PATH = ROOT / "docs" / "quotes.json"
 
 DEMO_BOOTSTRAP = r"""
 // ── GitHub Pages demo (no backend) ──────────────────────────────────────────
@@ -163,13 +164,34 @@ function renderRightDemo() {
 function startGithubPagesDemo() {
   demoMode = true;
   document.getElementById('configModal')?.classList.add('hidden');
-  setStatus('demo', 'Demo (GitHub Pages)');
-  loadDemoData();
-  startRefreshCycle();
+  const hasQuotes = loadCachedQuotes();
+  if (!hasQuotes) loadDemoData();
+  setStatus(hasQuotes ? 'live' : 'demo', hasQuotes ? `As of ${CACHED_QUOTES_AS_OF}` : 'Demo (simulated)');
+  renderIndustries();
+  renderRight();
+  if (!hasQuotes) startRefreshCycle();
+  else {
+    const el = document.getElementById('nextRefresh');
+    if (el) el.textContent = 'Updates ~30 min';
+  }
   const banner = document.createElement('div');
   banner.style.cssText = 'background:#1e3a5f;border:1px solid #3b82f6;border-radius:7px;padding:10px 14px;font-size:12px;color:#93c5fd;margin:8px 24px;line-height:1.5;';
-  banner.innerHTML = '<b>Demo site.</b> Prices are simulated. For live NSE data, run <code>python proxy_server.py</code> locally and open <a href="http://localhost:8765" style="color:#bfdbfe">localhost:8765</a>.';
+  banner.innerHTML = hasQuotes
+    ? '<b>Cached prices.</b> Snapshot from Angel One, refreshed ~every 30 min on trading days. Reload to update. For live data run <code>python proxy_server.py</code> locally.'
+    : '<b>Demo site.</b> Prices are simulated until the first quote refresh runs. For live data run <code>python proxy_server.py</code> locally.';
   document.querySelector('.header')?.after(banner);
+}
+
+function loadCachedQuotes() {
+  if (!CACHED_QUOTES) return false;
+  cachedQuoteMode = true;
+  for (const [sym, q] of Object.entries(CACHED_QUOTES)) {
+    prices[sym] = {
+      ltp: q.ltp, pchg: q.pchg, open: q.open, prev_close: q.prev_close,
+      high: q.high, low: q.low, volume: q.volume, vol: q.volume,
+    };
+  }
+  return true;
 }
 """
 
@@ -206,6 +228,16 @@ def ipo_to_stocks_raw(ipo_rows: list) -> list:
             "fno": pb == "No Band",
         })
     return out
+
+
+def load_cached_quotes_js() -> str:
+    if not QUOTES_PATH.exists():
+        return "const CACHED_QUOTES_AS_OF = '';\nconst CACHED_QUOTES = null;"
+    data = json.loads(QUOTES_PATH.read_text(encoding="utf-8"))
+    return (
+        f"const CACHED_QUOTES_AS_OF = {json.dumps(data.get('fetched_at_ist', ''))};\n"
+        f"const CACHED_QUOTES = {json.dumps(data.get('data', {}), separators=(',', ':'))};"
+    )
 
 
 def main():
@@ -261,10 +293,9 @@ def main():
         raise SystemError("Could not find window.onload block to patch")
     html = html.replace(onload_old, onload_new)
 
-    # Inject demo helpers after STOCKS_RAW
     html = html.replace(
         stocks_js,
-        stocks_js + "\n" + DEMO_BOOTSTRAP.strip(),
+        stocks_js + "\n" + load_cached_quotes_js() + "\n" + DEMO_BOOTSTRAP.strip(),
     )
 
     OUT.parent.mkdir(parents=True, exist_ok=True)

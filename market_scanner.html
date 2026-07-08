@@ -1372,6 +1372,7 @@ let selectedGroup = null;
 let refreshTimer = null;
 let countdown = 60;
 let demoMode = false;
+let cachedQuoteMode = false;
 let scriptMap = {}; // symbol -> token (for Angel API)
 
 // ===================== GROUPING =====================
@@ -1547,6 +1548,12 @@ function loadDemoData() {
 }
 
 function updateDemoData() {
+  if (cachedQuoteMode) {
+    renderIndustries();
+    renderRight();
+    if (ssResults.length > 0) ssRun();
+    return;
+  }
   for (const sym of Object.keys(prices)) {
     const drift = (Math.random() - 0.5) * 0.3;
     prices[sym].pchg = parseFloat((prices[sym].pchg + drift).toFixed(2));
