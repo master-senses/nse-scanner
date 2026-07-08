@@ -1,0 +1,10 @@
+config.json
+config.py
+*.csv
+fetch_avg_vol.json
+fetch_pct_chg.json
+daily_bhavcopies/
+__pycache__/
+*.pyc
+.env
+.DS_Store

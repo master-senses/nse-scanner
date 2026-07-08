@@ -1,0 +1,12 @@
+fastapi==0.138.0
+uvicorn==0.49.0
+requests==2.34.2
+pyotp==2.10.0
+smartapi-python==1.5.5
+
+# smartapi-python's own packaging omits these two at install time even though
+# its code imports them directly (SmartApi/smartConnect.py imports logzero;
+# SmartApi/smartApiWebsocket.py imports websocket). Pinned explicitly here so
+# `pip install -r requirements.txt` works in one shot, no manual chasing.
+logzero==1.7.0
+websocket-client==1.9.0
